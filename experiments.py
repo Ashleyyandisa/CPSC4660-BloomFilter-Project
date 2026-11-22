@@ -1,4 +1,5 @@
 import csv
+import math
 import os
 import time
 
@@ -11,6 +12,19 @@ DATASET_SIZES = [1000, 5000, 10000, 50000, 100000]
 QUERY_COUNT = 10000
 ERROR_RATE = 0.01
 STANDARD_CAPACITY = 10000
+
+
+def bloom_parameters(capacity, error_rate):
+    size = math.ceil(
+        -(capacity * math.log(error_rate)) / (math.log(2) ** 2)
+    )
+
+    num_hashes = max(
+        1,
+        round((size / capacity) * math.log(2))
+    )
+
+    return size, num_hashes
 
 
 def false_positive_rate(bloom_filter, queries):
@@ -29,15 +43,18 @@ def measure_lookup_time(bloom_filter, queries):
     for item in queries:
         bloom_filter.contains(item)
 
-    end = time.perf_counter()
-
-    return end - start
+    return time.perf_counter() - start
 
 
 def run_standard(inserted, queries):
+    size, num_hashes = bloom_parameters(
+        STANDARD_CAPACITY,
+        ERROR_RATE
+    )
+
     bloom_filter = StandardBloomFilter(
-        capacity=STANDARD_CAPACITY,
-        error_rate=ERROR_RATE
+        size=size,
+        num_hashes=num_hashes
     )
 
     start = time.perf_counter()
@@ -52,7 +69,7 @@ def run_standard(inserted, queries):
 
     return {
         "fpr": fpr,
-        "memory_bits": bloom_filter.memory_bits(),
+        "memory_bits": len(bloom_filter.bit_array) * 8,
         "insertion_time": insertion_time,
         "lookup_time": lookup_time
     }
@@ -107,30 +124,23 @@ def main():
 
         rows.append({
             "dataset_size": size,
-
             "standard_fpr": standard["fpr"],
             "scalable_fpr": scalable["fpr"],
-
             "standard_memory_bits": standard["memory_bits"],
             "scalable_memory_bits": scalable["memory_bits"],
-
             "standard_insertion_time": standard["insertion_time"],
             "scalable_insertion_time": scalable["insertion_time"],
-
             "standard_lookup_time": standard["lookup_time"],
             "scalable_lookup_time": scalable["lookup_time"],
-
             "scalable_num_filters": scalable["num_filters"]
         })
 
     output_file = "results/results.csv"
 
     with open(output_file, "w", newline="") as csvfile:
-        fieldnames = rows[0].keys()
-
         writer = csv.DictWriter(
             csvfile,
-            fieldnames=fieldnames
+            fieldnames=rows[0].keys()
         )
 
         writer.writeheader()

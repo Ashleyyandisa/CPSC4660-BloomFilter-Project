@@ -1,49 +1,49 @@
-import math
+"""A basic Bloom filter using a bytearray and SHA-256 hashing."""
+
 import hashlib
 
-
 class StandardBloomFilter:
-    def __init__(self, capacity=1000, error_rate=0.01):
-        self.capacity = capacity
-        self.error_rate = error_rate
-        self.count = 0
+    """Store probable membership of items with a fixed-size bit array.
 
-        # Number of bits needed
-        self.size = math.ceil(
-            -(capacity * math.log(error_rate)) / (math.log(2) ** 2)
-        )
+    Bloom filters can return false positives, but not false negatives for
+    items that have been added (unless the filter is modified or reset).
+    """
 
-        # Number of hash functions
-        self.num_hashes = max(
-            1,
-            round((self.size / capacity) * math.log(2))
-        )
+    def __init__(self, size: int, num_hashes: int):
+        if size <= 0:
+            raise ValueError("size must be greater than 0")
+        if num_hashes <= 0:
+            raise ValueError("num_hashes must be greater than 0")
 
-        # Bit array
-        self.bit_array = [0] * self.size
+        self.size = size
+        self.num_hashes = num_hashes
+        self.bit_array = bytearray((size + 7) // 8)
 
-    def _hashes(self, item):
-        item = str(item)
+    def _hashes(self, item: str):
+        """Generate repeatable bit positions for a string."""
+        if not isinstance(item, str):
+            raise TypeError("item must be a string")
+
+        digest = hashlib.sha256(item.encode("utf-8")).digest()
+        first = int.from_bytes(digest[:16], "big")
+        second = int.from_bytes(digest[16:], "big") or 1
 
         for i in range(self.num_hashes):
-            value = f"{i}-{item}".encode()
-            digest = hashlib.sha256(value).hexdigest()
-            position = int(digest, 16) % self.size
+            yield (first + i * second) % self.size
 
-            yield position
-
-    def add(self, item):
+    def add(self, item: str) -> None:
+        """Mark all hash positions for the item as present."""
         for position in self._hashes(item):
-            self.bit_array[position] = 1
+            byte_index, bit_index = divmod(position, 8)
+            self.bit_array[byte_index] |= 1 << bit_index
 
-        self.count += 1
-
-    def contains(self, item):
+    def contains(self, item: str) -> bool:
+        """Return False if definitely absent, True if possibly present."""
         for position in self._hashes(item):
-            if self.bit_array[position] == 0:
+            byte_index, bit_index = divmod(position, 8)
+            if not (self.bit_array[byte_index] & (1 << bit_index)):
                 return False
-
         return True
 
-    def memory_bits(self):
-        return self.size
+    def __contains__(self, item: str) -> bool:
+        return self.contains(item)
