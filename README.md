@@ -58,8 +58,8 @@ Contains unit tests for the Standard Bloom Filter implementation.
 `test_data_generator.py`  
 Contains unit tests for the reproducible data generator.
 
-`test_scalable.py`  
-Tests the Scalable Bloom Filter's membership operations and verifies that additional filters are created when necessary.
+`test_scalable_bloom.py`  
+Contains unit tests for the Scalable Bloom Filter, including membership testing, filter expansion, memory growth, and false-negative checks.
 
 `results/results.csv`  
 Stores the experimental measurements for all dataset sizes.
@@ -87,10 +87,10 @@ Run the data generator tests:
 python3 test_data_generator.py
 ```
 
-Run the Scalable Bloom Filter test:
+Run the Scalable Bloom Filter tests:
 
 ```bash
-python3 test_scalable.py
+python3 test_scalable_bloom.py
 ```
 
 Run the complete experiments:
